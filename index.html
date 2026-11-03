@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>GameNGen — 디퓨전 모델은 실시간 게임 엔진이다</title>
+<meta name="description" content="논문 발표: Diffusion Models Are Real-Time Game Engines (Valevski et al., ICLR 2025)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230a0a0b'/%3E%3Crect x='3' y='3' width='10' height='10' fill='none' stroke='%235ef2ff' stroke-width='2'/%3E%3Crect x='6' y='6' width='4' height='4' fill='%23ff4a1c'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/deck.css">
+<link rel="stylesheet" href="css/slides.css">
+<script>
+  /* Edit here: shown on the boot screen and title card (leave '' to hide). */
+  window.DECK_CONFIG = { presenter: '구현호', dept: '컴퓨터공학과', studentId: 'C411009', course: '비디오이미지프로세싱 · 논문 발표' };
+</script>
+</head>
+<body>
+<div id="stage">
+  <div id="slides">
+
+  <!-- ============ 0 · BOOT ============ -->
+  <section class="slide s-boot" data-id="boot" data-steps="0" data-hud="off">
+    <div class="boot-center">
+      <div class="boot-line mono">&gt; loading world model<span class="boot-dots"></span></div>
+      <div class="boot-press pixel">PRESS ENTER TO START</div>
+    </div>
+  </section>
+
+  <!-- ============ 1 · HOOK ============ -->
+  <section class="slide s-hook" data-id="hook" data-steps="2" data-hud="off" data-trans="cut">
+    <canvas class="hook-ambient" width="48" height="27"></canvas>
+    <div class="hook-screen">
+      <video class="hook-video" src="assets/video/hook.mp4" poster="assets/img/hook-poster.jpg" muted loop playsinline preload="auto"></video>
+    </div>
+    <div class="hook-claim" data-f="1" data-fout="2">
+      <h1 class="glitch" data-text="이건 DOOM이 아닙니다.">이건 DOOM이 아닙니다.</h1>
+    </div>
+    <div class="hook-sub" data-f="1" data-fout="2">게임 엔진 없이, <b>신경망</b>이 화면을 한 장씩 실시간으로 그리는 중</div>
+    <div class="title-card" data-f="2">
+      <div class="tc-kicker">비디오이미지프로세싱 · 논문 리뷰 · ICLR 2025</div>
+      <h1 class="tc-title">Diffusion Models Are<br>Real-Time Game Engines</h1>
+      <p class="tc-ko">디퓨전 모델은 실시간 게임 엔진이다</p>
+      <div class="tc-authors">Dani Valevski · Yaniv Leviathan · Moab Arar · Shlomi Fruchter<small>Google Research · Google DeepMind · Tel Aviv University</small></div>
+      <div class="tc-name"><span class="pixel">GAME<b>N</b>GEN</span></div>
+      <div class="tc-presenter" id="tc-presenter"></div>
+    </div>
+    <div class="src">영상: gamengen.github.io · 사람이 GameNGen으로 DOOM을 플레이하는 장면</div>
+  </section>
+
+  <!-- ============ 2 · ENGINE LOOP ============ -->
+  <section class="slide s-engine" data-id="engine" data-steps="2" data-trans="denoise">
+    <header class="head">
+      <h2 class="h2">게임 엔진이 <span class="dim">매 프레임</span> 하는 일</h2>
+    </header>
+    <svg class="eng-wires" viewBox="0 0 1920 1080" aria-hidden="true">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+      </defs>
+      <g class="wires" fill="none" stroke="currentColor" stroke-width="3" marker-end="url(#arw)">
+        <path d="M440,480 C500,480 505,570 556,570"/>
+        <path d="M440,660 C500,660 505,570 556,570"/>
+        <path class="w-mid" d="M860,570 L916,570"/>
+        <path d="M1220,570 L1336,570"/>
+        <path class="w-loop" d="M1560,382 C1560,300 280,300 280,416"/>
+      </g>
+      <path id="eng-pulse-path" d="M280,420 L280,450 L440,480 C500,480 505,570 556,570 L1336,570 L1560,382 C1560,300 280,300 280,420" fill="none" stroke="none"/>
+      <circle class="eng-pulse" r="9"/>
+      <text class="w-loop-lab" x="920" y="314" text-anchor="middle">1초에 20~60번 반복</text>
+    </svg>
+    <div class="node n-state">
+      <span class="lab lab-a">게임 상태</span><span class="lab lab-b">과거 프레임</span>
+      <small class="sm-a">위치 · 체력 · 적</small>
+      <span class="mini-stack sm-b"><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div class="node n-key"><span class="lab">키 입력</span><span class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>→</kbd><kbd>FIRE</kbd></span></div>
+    <div class="node n-rules real shard-src"><span class="lab">규칙</span><code>if (hit) hp -= 10;</code></div>
+    <div class="node n-render real shard-src"><span class="lab">렌더링</span><code>draw(walls, sprites);</code></div>
+    <div class="node n-nn gen"><span class="lab">신경망</span><small>규칙<em>과</em> 렌더링을 한꺼번에 학습</small></div>
+    <div class="node n-out"><div class="out-img"><img src="assets/img/hero2.jpg" alt="DOOM 화면"></div><span class="lab">다음 프레임</span></div>
+    <div class="eng-q" data-f="1" data-fout="2"><i>“</i>신경망이 통째로 배운다면?<i>”</i></div>
+    <div class="eng-big" data-f="2" data-fx="zoom"><span class="gen">다음 프레임</span> 예측</div>
+    <div class="eng-big-sub" data-f="2">이미지 생성에 가장 강한 모델 → <b class="gen">Diffusion</b></div>
+  </section>
+
+  <!-- ============ 3 · DIFFUSION RECAP ============ -->
+  <section class="slide s-diff" data-id="diffusion" data-steps="4">
+    <header class="head">
+      <h2 class="h2">Diffusion 복습 <span class="dim">+ Stable Diffusion</span></h2>
+    </header>
+    <div class="dn-panel">
+      <div class="dn-view">
+        <canvas class="dn-canvas" width="640" height="512"></canvas>
+        <div class="dn-t mono">t = <b>1000</b></div>
+      </div>
+      <div class="dn-scrub" title="drag">
+        <div class="dn-track"><i class="dn-fill"></i><i class="dn-thumb"></i></div>
+        <div class="dn-ends"><span><span class="mono">x₀</span> 깨끗한 이미지</span><span><span class="mono">x<sub>T</sub></span> 순수 노이즈</span></div>
+      </div>
+      <div class="dn-eq mono">x<sub>t</sub> = √ᾱ<sub>t</sub> · x<sub>0</sub> + √(1−ᾱ<sub>t</sub>) · ε, &nbsp; ε ~ 𝒩(0, I)</div>
+    </div>
+    <div class="dn-say" data-fout="2">
+      <div class="ds ds-a"><div class="ds-k">학습 <span class="mono">forward</span></div>깨끗한 이미지에 노이즈를 섞고<span class="sub">UNet은 섞은 노이즈를 맞히도록 학습</span></div>
+      <div class="ds ds-b"><div class="ds-k">생성 <span class="mono">reverse</span></div>순수 노이즈에서 시작해서<span class="sub">한 단계씩 노이즈를 걷어냄</span></div>
+    </div>
+    <div class="card dn-card c-latent" data-f="2">
+      <div class="card-h"><span class="num">①</span> Latent space <span class="badge" data-f="4">← GameNGen이 바꾸는 곳</span></div>
+      <div class="lat-row">
+        <figure><img src="assets/img/hero.jpg" alt=""><figcaption><span class="mono">320×256×3</span> 픽셀</figcaption></figure>
+        <div class="lat-arrow">인코더<i></i></div>
+        <figure class="lat-z"><div class="lat-stack"><canvas class="lat-canvas" width="40" height="32"></canvas><i></i><i></i><i></i></div><figcaption><span class="mono">40×32×4</span> latent</figcaption></figure>
+        <p class="card-p">수업 때 본 <b>오토인코더</b>의 인코더<br>픽셀 <b>8×8</b>을 latent 한 칸으로 압축<br>→ 작은 latent에서 디노이징하니 <b>훨씬 빠름</b></p>
+      </div>
+    </div>
+    <div class="card dn-card c-cond" data-f="3">
+      <div class="card-h"><span class="num">②</span> Conditioning <span class="badge" data-f="4">← 여기도</span></div>
+      <div class="cond-row">
+        <div class="prompt serif">“a cat on the beach”</div>
+        <div class="lat-arrow">텍스트 인코더<i></i></div>
+        <svg class="cond-unet" viewBox="0 0 260 150" aria-hidden="true">
+          <g class="rails"><path d="M60,0 V58"/><path d="M130,0 V74"/><path d="M200,0 V58"/></g>
+          <g class="tok"><circle cx="60" cy="0" r="6"/><circle cx="130" cy="0" r="6"/><circle cx="200" cy="0" r="6"/></g>
+          <path class="unet" d="M10,40 L110,74 L150,74 L250,40 L250,140 L150,106 L110,106 L10,140 Z"/>
+          <text x="130" y="96" text-anchor="middle">UNet</text>
+        </svg>
+        <p class="card-p">텍스트 토큰을<br><b>cross-attention</b>으로 UNet에 전달</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 · DATA ============ -->
+  <section class="slide s-data" data-id="data" data-steps="2" data-trans="denoise">
+    <canvas class="tile-wall" width="1920" height="1080"></canvas>
+    <div class="tile-shade"></div>
+    <header class="head">
+      <h2 class="h2">에이전트가 대신 플레이하고, <span class="dim">전부 녹화</span></h2>
+    </header>
+    <div class="pipe">
+      <div class="pipe-node"><svg class="pipe-bot" viewBox="0 0 120 112" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M60 8v16"/><circle cx="60" cy="8" r="4" fill="currentColor"/><rect x="22" y="26" width="76" height="58" rx="14"/><circle cx="45" cy="54" r="7" fill="var(--real)" stroke="none"/><circle cx="75" cy="54" r="7" fill="var(--real)" stroke="none"/><path d="M48 72h24"/><path d="M14 46v20M106 46v20"/><path d="M40 84v14M80 84v14"/></svg><b>강화학습 에이전트</b><small class="mono">PPO</small></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node"><div class="pipe-screen"><img src="assets/img/hero2.jpg" alt=""></div><b>DOOM 플레이</b><small class="mono">ViZDoom</small></div>
+      <div class="pipe-arrow"></div>
+      <div class="pipe-node pair"><div class="pair-box"><span class="pf">화면</span><span class="pa">누른 키</span></div><b>(화면, 키) 쌍</b></div>
+    </div>
+    <div class="counter" data-f="1" data-fx="zoom">
+      <div class="counter-n mono">0</div>
+      <div class="counter-l">모은 학습 데이터 · <b>(화면, 키) 쌍</b></div>
+    </div>
+    <div class="skill" data-f="2">
+      <div class="skill-bar"><i></i></div>
+      <div class="skill-ends"><span>서툰 플레이</span><span>학습하는 내내 전부 녹화</span><span>능숙한 플레이</span></div>
+    </div>
+  </section>
+
+  <!-- ============ 5 · MODEL (3D) ============ -->
+  <section class="slide s-model" data-id="model" data-steps="4">
+    <canvas class="gl m-gl"></canvas>
+    <div class="m-labels"></div>
+    <header class="head">
+      <h2 class="h2">Stable Diffusion v1.4<br><span class="dim">두 군데만 바꾼다</span></h2>
+    </header>
+    <ol class="m-list">
+      <li class="li1"><span class="mono">01</span><div>조건 입력<br><span class="was">텍스트 프롬프트</span> → <b class="gen">키 입력</b></div></li>
+      <li class="li2"><span class="mono">02</span><div>과거 프레임<br><b class="real">최근 64장</b>을 함께 입력</div></li>
+      <li class="li3"><span class="mono">↺</span><div>반복<br>출력이 <b class="gen">다시 과거 프레임으로</b></div></li>
+    </ol>
+    <div class="m-quote" data-f="2" data-fout="3"><span class="gen">키보드</span>로 조종하는 Stable Diffusion</div>
+    <img class="m-fallback" src="assets/fig/fig3.png" alt="GameNGen 구조 개요 (논문 Figure 3)">
+    <div class="paper"><img src="assets/fig/fig3.png" alt="Figure 3"><span>논문 Figure 3 · 구조 개요</span></div>
+  </section>
+
+  <!-- ============ 6 · DRIFT ============ -->
+  <section class="slide s-drift" data-id="drift" data-steps="3" data-trans="denoise">
+    <header class="head">
+      <h2 class="h2">만들수록 <span class="real">오차가 쌓인다</span></h2>
+    </header>
+    <div class="scene sc-film" data-fout="1">
+      <div class="film">
+        <figure><img src="assets/fig/fig4_no_0.jpg" alt=""><figcaption>프레임 <span class="mono">0</span></figcaption></figure>
+        <figure><img src="assets/fig/fig4_no_1.jpg" alt=""><figcaption class="mono">10</figcaption></figure>
+        <figure><img src="assets/fig/fig4_no_2.jpg" alt=""><figcaption class="mono">20</figcaption></figure>
+        <figure><img src="assets/fig/fig4_no_3.jpg" alt=""><figcaption class="mono">30</figcaption></figure>
+        <figure><img src="assets/fig/fig4_no_4.jpg" alt=""><figcaption class="mono">40</figcaption></figure>
+      </div>
+      <div class="film-bar"><span>20~30프레임 이후 빠르게 무너짐</span></div>
+      <div class="film-cap">논문 Fig. 4 · 노이즈 증강 없이 생성, 10프레임 간격</div>
+    </div>
+    <div class="scene sc-split" data-f="1" data-fout="3">
+      <div class="lane lane-train">
+        <div class="lane-h"><b class="real">학습할 때</b><span class="mono">teacher forcing</span></div>
+        <div class="lane-row">
+          <div class="hist"><img class="hs real-b" src="assets/fig/fig4_no_0.jpg" alt=""><img class="hs real-b" src="assets/fig/fig4_aug_1.jpg" alt=""><img class="hs real-b" src="assets/fig/fig4_aug_2.jpg" alt=""><img class="hs real-b" src="assets/fig/fig4_aug_3.jpg" alt=""></div>
+          <div class="arrow-r"></div><div class="model-chip">모델</div><div class="arrow-r"></div>
+          <div class="out"><img src="assets/fig/fig4_aug_4.jpg" alt=""><span class="ok">오차 작음</span></div>
+        </div>
+        <p class="lane-p">과거 프레임 = 게임의 <b class="real">진짜</b> 화면</p>
+      </div>
+      <div class="lane lane-play">
+        <div class="lane-h"><b class="gen">플레이할 때</b><span class="mono">auto-regressive</span></div>
+        <div class="lane-row">
+          <div class="hist"><canvas class="hs gen-b" width="160" height="128"></canvas><canvas class="hs gen-b" width="160" height="128"></canvas><canvas class="hs gen-b" width="160" height="128"></canvas><canvas class="hs gen-b" width="160" height="128"></canvas></div>
+          <div class="arrow-r"></div><div class="model-chip">모델</div><div class="arrow-r"></div>
+          <div class="out"><canvas class="sim" width="320" height="256"></canvas><span class="bad"><b class="sim-n mono">0</b>번째 · 오차 ↑</span></div>
+        </div>
+        <svg class="feedback" viewBox="0 0 900 80" aria-hidden="true"><path d="M760,4 C760,70 120,70 120,4" /></svg>
+        <p class="lane-p">과거 프레임 = 모델이 <b class="gen">직접 만든</b> 화면<br>(조금씩 틀림)</p>
+        <div class="illu">설명용 시뮬레이션</div>
+      </div>
+    </div>
+    <div class="scene sc-copy" data-f="2" data-fout="3">
+      <div class="copies"></div>
+      <div class="copy-cap">복사본의 복사본의 복사본…</div>
+    </div>
+    <div class="ask" data-f="3"><p><em>여러분</em>이라면 어떻게 고칠까요?</p></div>
+    <div class="paper"><img src="assets/fig/fig4.jpg" alt="Figure 4"><span>논문 Figure 4 · Auto-regressive drift (위: 노이즈 증강 없음, 아래: 있음)</span></div>
+  </section>
+
+  <!-- ============ 7 · FIX ============ -->
+  <section class="slide s-fix" data-id="fix" data-steps="4" data-trans="denoise">
+    <header class="head">
+      <h2 class="h2">과거 프레임에 <span class="gen">노이즈</span>를 섞어서 학습</h2>
+    </header>
+    <div class="scene fx-a" data-fout="2">
+      <div class="na-hist">
+        <div class="na-lab"><b>학습할 때</b> 넣는 과거 프레임</div>
+        <div class="na-row">
+          <div class="na-f"><img src="assets/fig/fig4_aug_0.jpg" alt=""><canvas width="160" height="128"></canvas></div>
+          <div class="na-f"><img src="assets/fig/fig4_aug_1.jpg" alt=""><canvas width="160" height="128"></canvas></div>
+          <div class="na-f"><img src="assets/fig/fig4_aug_2.jpg" alt=""><canvas width="160" height="128"></canvas></div>
+          <div class="na-f"><img src="assets/fig/fig4_aug_3.jpg" alt=""><canvas width="160" height="128"></canvas></div>
+        </div>
+        <div class="na-plus">+ 가우시안 노이즈 · 섞는 양은 매번 <b>랜덤</b></div>
+      </div>
+      <div class="na-dial">
+        <svg viewBox="0 0 420 250" aria-hidden="true">
+          <g class="buckets"></g>
+          <line class="needle" x1="210" y1="220" x2="210" y2="60"/>
+          <circle cx="210" cy="220" r="10" class="hub"/>
+          <text x="30" y="246" class="dl">0</text><text x="390" y="246" class="dl" text-anchor="end">0.7</text>
+        </svg>
+        <div class="na-read">노이즈 양 α = <b class="na-a">0.00</b> &nbsp;→&nbsp; 구간 <b class="na-b">1</b>/10</div>
+        <div class="na-emb">구간마다 <span class="gen">임베딩</span>을 학습해서 모델에 같이 입력</div>
+      </div>
+      <div class="na-quote" data-f="1">
+        <blockquote>“앞서 만들어진 프레임의 정보를 <em>바로잡을 수 있게</em> 된다”</blockquote>
+        <cite>Valevski et al., §3.2.1 &nbsp;<span class="serif">“allows the network to correct information sampled in previous frames”</span></cite>
+      </div>
+    </div>
+    <div class="scene fx-b" data-f="2" data-fout="3">
+      <div class="dip">
+        <div class="dip-card"><canvas class="dip-c1" width="320" height="256"></canvas><div class="dip-t"><small>Diffusion</small>노이즈 섞인 <b>이미지</b> → 깨끗한 이미지</div></div>
+        <div class="dip-eq">≈</div>
+        <div class="dip-card gen-card"><div class="dip-hist"><canvas class="dip-c2" width="320" height="256"></canvas></div><div class="dip-t"><small>GameNGen</small>노이즈 섞인 <b>과거</b> → 다음 프레임</div></div>
+      </div>
+      <div class="dip-line">같은 디노이징 아이디어를 <span class="gen">과거 프레임</span>에 적용</div>
+    </div>
+    <div class="scene fx-c" data-f="3">
+      <div class="ev-strips">
+        <div class="ev-lab">노이즈 증강 <b class="real">없음</b></div>
+        <div class="ev-row"><img src="assets/fig/fig4_no_0.jpg" alt=""><img src="assets/fig/fig4_no_1.jpg" alt=""><img src="assets/fig/fig4_no_2.jpg" alt=""><img src="assets/fig/fig4_no_3.jpg" alt=""><img src="assets/fig/fig4_no_4.jpg" alt=""></div>
+        <div class="ev-lab">노이즈 증강 <b class="gen">있음</b></div>
+        <div class="ev-row"><img src="assets/fig/fig4_aug_0.jpg" alt=""><img src="assets/fig/fig4_aug_1.jpg" alt=""><img src="assets/fig/fig4_aug_2.jpg" alt=""><img src="assets/fig/fig4_aug_3.jpg" alt=""><img src="assets/fig/fig4_aug_4.jpg" alt=""></div>
+        <div class="ev-cap">논문 Fig. 4 · 같은 장면, 10프레임 간격</div>
+      </div>
+      <div class="ev-chart" data-f="4">
+        <svg class="psnr" viewBox="0 0 760 520" aria-label="생성 단계별 PSNR"></svg>
+        <div class="ev-cap">PSNR = 실제 화면과 픽셀이 얼마나 비슷한지 (높을수록 좋음) · 논문 Fig. 7 재구성</div>
+      </div>
+    </div>
+    <div class="paper"><img src="assets/fig/fig7.png" alt="Figure 7"><span>논문 Figure 7 · 노이즈 증강의 효과 (LPIPS ↓, PSNR ↑)</span></div>
+  </section>
+
+  <!-- ============ 8 · REAL-TIME ============ -->
+  <section class="slide s-rt" data-id="realtime" data-steps="1">
+    <header class="head">
+      <h2 class="h2"><span class="gen">20 FPS</span>를 만든 두 가지</h2>
+    </header>
+    <div class="rt-l">
+      <div class="rt-h"><span class="num">①</span> 디코더만 다시 학습</div>
+      <div class="wipe">
+        <img class="w-b" src="assets/fig/fig12_r0_ft.jpg" alt="다시 학습한 디코더">
+        <div class="w-a"><img src="assets/fig/fig12_r0_sd.jpg" alt="SD v1.4 디코더"></div>
+        <div class="w-handle"><i></i></div>
+        <span class="w-la">SD v1.4 디코더</span><span class="w-lb">다시 학습</span>
+        <div class="w-hud"></div>
+      </div>
+      <p class="rt-p">기본 디코더는 <b>탄약·체력 숫자</b> 같은 작은 글씨가 뭉개짐 · 논문 Fig. 12<br>→ 디코더만 <b>reconstruction loss</b>로 게임 화면에 맞게 다시 학습</p>
+    </div>
+    <div class="rt-r" data-f="1">
+      <div class="rt-h"><span class="num">②</span> 디노이징은 <b class="gen">4</b>단계만</div>
+      <div class="rt-row">
+        <div class="steps-cd"><span class="cd-from mono">20–50<small>단계</small></span><span class="cd-arrow">↓</span><span class="cd-to">4<small>단계</small></span><span class="cd-l"><b>DDIM</b> = 단계를 건너뛰며 샘플링<br>프레임 하나당 디노이징 단계 수</span></div>
+        <div class="rt-mon">
+          <video class="rt-video" src="assets/video/loop.mp4" muted loop playsinline preload="auto"></video>
+          <div class="fps mono"><b class="fps-n">20</b> FPS</div>
+          <div class="tpu">TPU-v5 한 대</div>
+        </div>
+      </div>
+      <div class="budget">
+        <div class="bud-bar"><i class="u u1"></i><i class="u u2"></i><i class="u u3"></i><i class="u u4"></i><i class="ae"></i></div>
+        <div class="bud-ticks"><span class="mono">0 ms</span><span>UNet × 4 = <span class="mono">40 ms</span></span><span>+ 오토인코더 → <b class="gen">프레임당 50 ms</b></span></div>
+      </div>
+    </div>
+    <div class="paper"><img src="assets/fig/fig12.jpg" alt="Figure 12"><span>논문 Figure 12 · SD v1.4 디코더 (왼쪽) · 다시 학습한 디코더 (가운데) · 실제 화면 (오른쪽)</span></div>
+  </section>
+
+  <!-- ============ 9 · RESULTS ============ -->
+  <section class="slide s-res" data-id="results" data-steps="3" data-trans="denoise">
+    <header class="head">
+      <h2 class="h2">얼마나 진짜 같을까?</h2>
+    </header>
+    <div class="psnr-box">
+      <div class="pb-k">다음 프레임 PSNR</div>
+      <div class="pb-n"><span class="pb-v">29.4</span><small>dB</small></div>
+      <div class="pb-eq">≈ JPEG로 압축한 화질<span>품질 설정 20~30 수준</span></div>
+      <div class="pb-note">과거 프레임은 진짜 화면 (teacher forcing)<br>테스트 기록 2,048개 기준</div>
+    </div>
+    <div class="poll" data-f="1" data-fout="3">
+      <div class="poll-q">이 장면 다음, <b>진짜 프레임은 어느 쪽?</b></div>
+      <div class="poll-ctx"><img src="assets/fig/fig5_a_ctx.jpg" alt=""><span>과거 프레임 4장<br>(실제 입력은 64장)</span></div>
+      <div class="poll-ab">
+        <figure class="pa"><img src="assets/fig/fig5_a_gt.jpg" alt=""><figcaption><b>A</b><span class="ans real">진짜 게임</span></figcaption></figure>
+        <figure class="pbb"><img src="assets/fig/fig5_a_pred.jpg" alt=""><figcaption><b>B</b><span class="ans gen">GameNGen</span></figcaption></figure>
+      </div>
+      <div class="poll-src">논문 Fig. 5</div>
+    </div>
+    <div class="humans" data-f="3">
+      <div class="hu-q">사람 평가 · <b>“어느 쪽이 진짜 게임?”</b></div>
+      <svg class="hu-chart" viewBox="0 0 1060 560" aria-label="사람 평가"></svg>
+      <div class="hu-note">평가자 10명 · 진짜 게임과 나란히 비교한 영상 130개 (+ 5~10분 생성한 뒤 영상 150개)</div>
+    </div>
+  </section>
+
+  <!-- ============ 10 · LIMITATIONS ============ -->
+  <section class="slide s-lim" data-id="limits" data-steps="2">
+    <canvas class="gl l-gl"></canvas>
+    <div class="l-labels">
+      <div class="l-now">지금</div>
+      <div class="l-edge"><b>약 3초</b> · 64프레임<br>여기까지만 기억</div>
+      <div class="l-lost">잊힘 →</div>
+    </div>
+    <header class="head">
+      <h2 class="h2">기억은 <span class="gen">약 3초</span>뿐</h2>
+    </header>
+    <div class="screen-mem" data-f="1" data-fout="2">
+      <div class="sm-frame"><img src="assets/img/hero.jpg" alt=""><i class="sm-hl h1"></i><i class="sm-hl h2"></i></div>
+      <div class="sm-t">대신 <b class="real">화면</b>이 기억해 준다<small>탄약·체력은 매 프레임 화면에 떠 있어서 계속 남음<br>발표 화면 아래 상태 표시줄처럼 ↓</small></div>
+    </div>
+    <div class="lim-cards" data-f="2">
+      <div class="lc"><span class="mono">01</span><h3>짧은 기억</h3><p>최근 약 3초만 봄<br>화면에 없는 정보는 잊음</p></div>
+      <div class="lc"><span class="mono">02</span><h3>데이터 범위</h3><p>에이전트가 못 가 본 곳은<br>잘 못 만듦</p></div>
+      <div class="lc"><span class="mono">03</span><h3>흉내만 가능</h3><p>있는 게임을 따라 할 뿐<br>새 게임은 못 만듦</p></div>
+      <div class="lc"><span class="mono">04</span><h3>직접 하면 티 남</h3><p>저자들도 몇 초 만에<br>알아챈 경우가 많음</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 11 · TAKEAWAY ============ -->
+  <section class="slide s-end" data-id="takeaway" data-steps="3" data-trans="denoise">
+    <canvas class="gl e-gl"></canvas>
+    <div class="gl e-still"></div>
+    <div class="end-shade"></div>
+    <ol class="sum" data-fout="1">
+      <li><span class="mono">01</span><div><b>게임 엔진</b> → 다음 프레임 예측</div></li>
+      <li><span class="mono">02</span><div><b class="gen">키 입력</b> + <b class="real">과거 프레임</b>을 조건으로 받는<br>Stable Diffusion</div></li>
+      <li><span class="mono">03</span><div>Drift는 <b class="gen">과거에 노이즈 섞기</b>로 해결</div></li>
+    </ol>
+    <div class="wm" data-f="1" data-fout="3">
+      <div class="wm-hd">
+        <div class="wm-k">앞으로</div>
+        <div class="wm-t">World models</div>
+        <div class="wm-s"><b>상호작용할 수 있는 세계</b>를 흉내 내는 신경망</div>
+      </div>
+      <div class="genie" data-f="2">
+        <div class="gn-h">최근 사례 <b>Genie 4</b><span>Google DeepMind · 2026년 10월 공개 · 연구 프리뷰</span></div>
+        <div class="gn-grid">
+          <div class="gn-c"><small>GameNGen</small>있는 게임 <b>DOOM 하나</b>를 흉내</div>
+          <div class="gn-c gen-c"><small>Genie 4</small>글로 설명한 <b>새 세계</b>를 실시간 생성<br>키보드로 이동 · 텍스트로 장면 변경</div>
+        </div>
+        <div class="gn-foot">남은 숙제는 같음 · 오래 돌리면 화면이 흐트러짐 <span class="real">(drift)</span></div>
+      </div>
+    </div>
+    <div class="thanks" data-f="3">
+      <div class="th-t">감사합니다</div>
+      <div class="th-q"><span class="pixel">&gt;</span>질문 받겠습니다</div>
+      <div class="th-ref mono">Valevski, Leviathan, Arar, Fruchter · “Diffusion Models Are Real-Time Game Engines” · ICLR 2025 · arXiv 2408.14837 · gamengen.github.io</div>
+    </div>
+  </section>
+
+  <!-- ============ A · Q&A BACKUP ============ -->
+  <section class="slide s-qa" data-id="qa" data-steps="0">
+    <header class="head">
+      <h2 class="h2">질문 있으신가요?</h2>
+    </header>
+    <div class="qa-grid">
+      <button class="qa-c" data-q="1"><b class="mono">1</b>왜 GAN이 아니라 diffusion?</button>
+      <button class="qa-c" data-q="2"><b class="mono">2</b>4단계면 충분한 이유?</button>
+      <button class="qa-c" data-q="3"><b class="mono">3</b>왜 랜덤 플레이 대신 RL 에이전트?</button>
+      <button class="qa-c" data-q="4"><b class="mono">4</b>64프레임이나 필요할까?</button>
+      <button class="qa-c" data-q="5"><b class="mono">5</b>노이즈 증강, 구체적으로는?</button>
+      <button class="qa-c" data-q="6"><b class="mono">6</b>다른 게임에도 될까?</button>
+      <button class="qa-c" data-q="7"><b class="mono">7</b>게임 엔진을 대신할 수 있을까?</button>
+      <button class="qa-c" data-q="8"><b class="mono">8</b>RL 에이전트 보상은 어떻게?</button>
+      <button class="qa-c" data-q="9"><b class="mono">9</b>수업 때 본 식이랑 다른데?</button>
+      <button class="qa-c" data-q="0"><b class="mono">0</b>Sora 같은 영상 생성이랑 뭐가 달라?</button>
+    </div>
+    <div class="qa-hint">숫자 키 <kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> 으로 답변 열기 · <kbd>Esc</kbd> 닫기</div>
+    <div class="qa-detail">
+      <div class="qd-in">
+        <div class="qd-q"></div>
+        <div class="qd-body">
+          <div class="qd-a"></div>
+          <div class="qd-fig"></div>
+        </div>
+        <div class="qd-hint">Esc · 돌아가기</div>
+      </div>
+    </div>
+  </section>
+
+  </div><!-- /slides -->
+
+  <div id="letterbox"><i class="lb-t"></i><i class="lb-b"></i></div>
+
+  <div id="hud">
+    <div class="hud-seg hs-lvl"><b class="hud-v" id="hud-lvl">01/11</b></div>
+    <div class="hud-seg hs-title"><b class="hud-t" id="hud-title">—</b></div>
+    <div class="hud-seg hs-keys"><div class="hk"><kbd data-k="prev">←</kbd><kbd data-k="next">→</kbd></div></div>
+    <div class="hud-seg hs-int"><b class="hud-v" id="hud-int">100%</b></div>
+  </div>
+
+  <canvas id="fx-noise" width="480" height="270"></canvas>
+  <div id="fx-ddim" class="mono"></div>
+  <div id="grain"></div>
+  <div id="scan"></div>
+  <div id="blackout"></div>
+
+  <div id="overview"><div class="ov-h">전체 보기 · 슬라이드를 누르면 이동 · O로 닫기</div><div class="ov-grid"></div></div>
+  <div id="help">
+    <div class="help-in">
+      <h3>단축키</h3>
+      <p><kbd>→</kbd> <kbd>Space</kbd> <kbd>PgDn</kbd> 다음 &nbsp; <kbd>←</kbd> <kbd>PgUp</kbd> 이전</p>
+      <p><kbd>P</kbd> 발표자 화면 &nbsp; <kbd>O</kbd> 전체 보기 &nbsp; <kbd>F</kbd> 전체화면 &nbsp; <kbd>B</kbd> 화면 끄기</p>
+      <p><kbd>G</kbd> 논문 그림 &nbsp; <kbd>Q</kbd> Q&amp;A 부록 &nbsp; <kbd>M</kbd> 저사양 모드 (3D 끔) &nbsp; <kbd>R</kbd> 타이머 리셋</p>
+      <p><kbd>3</kbd><kbd>Enter</kbd> 3번 슬라이드로 이동 &nbsp; <kbd>Home</kbd>/<kbd>End</kbd> 처음/끝</p>
+      <p class="lite-state"></p>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/img-data.js"></script>
+<script src="js/notes.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/deck.js"></script>
+<script src="js/slides/s-boot-hook.js"></script>
+<script src="js/slides/s-engine.js"></script>
+<script src="js/slides/s-diffusion.js"></script>
+<script src="js/slides/s-data.js"></script>
+<script src="js/slides/s-model.js"></script>
+<script src="js/slides/s-drift.js"></script>
+<script src="js/slides/s-fix.js"></script>
+<script src="js/slides/s-realtime.js"></script>
+<script src="js/slides/s-results.js"></script>
+<script src="js/slides/s-limits.js"></script>
+<script src="js/slides/s-takeaway.js"></script>
+<script src="js/slides/s-qa.js"></script>
+<script>Deck.start();</script>
+</body>
+</html>
