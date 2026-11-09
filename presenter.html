@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="css/deck.css">
 <style>
   html,body{overflow:auto;background:#0a0a0b}
-  body{padding:28px 36px;font-family:var(--display);color:var(--ink)}
+  body{padding:28px 36px;font-family:var(--display);color:var(--ink);height:100vh;box-sizing:border-box;display:flex;flex-direction:column}
   .top{display:flex;align-items:flex-end;gap:36px;border-bottom:1px solid var(--line);padding-bottom:18px}
   .lvl{font:800 64px/1 var(--mono);color:var(--real)}
   .ttl{font-weight:800;font-size:42px;line-height:1.2;letter-spacing:-.035em;flex:1}
@@ -19,10 +19,23 @@
   .pace{font:700 18px var(--sans);padding:4px 12px;border-radius:999px;display:inline-block;margin-top:8px}
   .pace.ok{background:rgba(94,242,255,.12);color:var(--gen)}
   .pace.late{background:rgba(255,74,28,.16);color:var(--real)}
-  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:34px;margin-top:22px}
-  .script{font-size:28px;line-height:1.7;letter-spacing:-.02em;white-space:pre-wrap;color:var(--ink)}
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:34px;margin-top:22px;flex:1;min-height:0}
+  /* only the script column scrolls, so the timer and click list stay put */
+  .script{font-size:28px;line-height:1.7;letter-spacing:-.02em;white-space:pre-wrap;color:var(--ink);overflow:auto;padding-right:14px}
+  .side{overflow:auto}
   .script b{color:var(--warn)}
   .script i{color:var(--gen)}
+  /* (괄호) = not spoken: gesture / pause / glance */
+  .script .dir{color:var(--ink3);font-size:.74em;font-weight:500;letter-spacing:-.01em}
+  /* script split at [→]: what's already said dims, the part for this click stays bright */
+  .script .seg{transition:opacity .3s}
+  .script .seg.past{opacity:.32}
+  .script .seg.later{opacity:.55}
+  .script .go{scroll-margin-top:6px}
+  .script .go{display:inline-block;font:800 15px/1 var(--sans);letter-spacing:0;padding:6px 10px;margin:0 8px 0 0;border-radius:6px;vertical-align:4px;border:1px solid var(--line2);color:var(--ink2);background:var(--bg3)}
+  .script .go.done{opacity:.32}
+  .script .go.nxt{color:#0a0a0b;background:var(--gen);border-color:var(--gen);box-shadow:0 0 16px rgba(94,242,255,.55);animation:goPulse 1.2s ease-in-out infinite}
+  @keyframes goPulse{50%{box-shadow:0 0 4px rgba(94,242,255,.2)}}
   .side h4{font:700 17px var(--sans);color:var(--ink3);margin:0 0 10px}
   .cues{list-style:none;margin:0 0 26px;padding:0}
   .cues li{font:500 19px/1.5 var(--sans);color:var(--ink3);padding:8px 12px;border-left:3px solid transparent}
@@ -76,6 +89,14 @@
     try { localStorage.setItem('gg-cmd', JSON.stringify(m)); } catch (e) {}
   }
   const md = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>');
+  // [→] in the script = click here. Segment k is spoken while the deck sits at step k.
+  function renderScript(n, s) {
+    const html = md(n.script || '');
+    if (s.id === 'qa') return html;
+    return html.replace(/\(([^()\n]*)\)/g, '<span class="dir">($1)</span>').split('[→]').map((p, k) =>
+      (k ? `<span class="go ${k <= s.step ? 'done' : k === s.step + 1 ? 'nxt' : ''}">▶ 클릭 ${k}</span>` : '') +
+      `<span class="seg ${k < s.step ? 'past' : k > s.step ? 'later' : 'cur'}">${p}</span>`).join('');
+  }
   const fmt = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function onState(s) {
     if (!s || s.type !== 'state') return;
@@ -85,7 +106,11 @@
     $('lvl').textContent = s.id === 'boot' ? '--' : s.id === 'qa' ? 'Q&A' : String(s.idx).padStart(2, '0');
     $('ttl').textContent = n.title || s.id;
     $('stp').textContent = `클릭 ${s.step} / ${s.steps} · 배정 ${n.budget || 0}초`;
-    $('script').innerHTML = md(n.script || '');
+    $('script').innerHTML = renderScript(n, s);
+    // bring the part for this click (with its ▶ badge) to the top of the script column
+    const cur = $('script').querySelector('.seg.cur');
+    if (cur && s.step > 0) (cur.previousElementSibling || cur).scrollIntoView({ block: 'start', behavior: 'smooth' });
+    else $('script').scrollTop = 0;
     $('memo').textContent = n.memo || '—';
     $('tgt').textContent = n.cum ? fmt(n.cum) : '—';
     $('cues').innerHTML = (n.cues || []).map((c, i) => `<li class="${i < s.step ? 'done' : i === s.step ? 'cur' : i === s.step + 1 ? 'nxt' : ''}">${md(c)}</li>`).join('');

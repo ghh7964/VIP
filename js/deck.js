@@ -345,7 +345,7 @@
     noiseCvs = FX.noiseCanvases(540, 310, 3);
 
     const cfg = window.DECK_CONFIG || {};
-    if (cfg.presenter) $('#tc-presenter').textContent = [cfg.studentId, cfg.presenter].filter(Boolean).join(' ');
+    if (cfg.presenters) $('#tc-presenter').textContent = cfg.presenters.map(p => p.filter(Boolean).join(' ')).join(' · ');
 
     initHud(); initSync(); initKeys(); buildOverview();
     slides.forEach(el => { const c = ctrlOf(el); try { c && c.init && c.init(el); } catch (e) { console.error(e); } });

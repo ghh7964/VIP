@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="css/slides.css">
 <script>
   /* Edit here: shown on the boot screen and title card (leave '' to hide). */
-  window.DECK_CONFIG = { presenter: '구현호', dept: '컴퓨터공학과', studentId: 'C411009', course: '비디오이미지프로세싱 · 논문 발표' };
+  window.DECK_CONFIG = { presenters: [['C411009', '구현호'], ['C011222', '안중현']], dept: '컴퓨터공학과', course: '비디오이미지프로세싱 · 논문 발표' };
 </script>
 </head>
 <body>
@@ -33,9 +33,9 @@
       <video class="hook-video" src="assets/video/hook.mp4" poster="assets/img/hook-poster.jpg" muted loop playsinline preload="auto"></video>
     </div>
     <div class="hook-claim" data-f="1" data-fout="2">
-      <h1 class="glitch" data-text="이건 DOOM이 아닙니다.">이건 DOOM이 아닙니다.</h1>
+      <h1 class="glitch" data-text="이 게임엔 엔진이 없습니다.">이 게임엔 엔진이 없습니다.</h1>
     </div>
-    <div class="hook-sub" data-f="1" data-fout="2">게임 엔진 없이, <b>신경망</b>이 화면을 한 장씩 실시간으로 그리는 중</div>
+    <div class="hook-sub" data-f="1" data-fout="2"><b>신경망</b>이 화면을 한 장씩 실시간으로 그리는 중</div>
     <div class="title-card" data-f="2">
       <div class="tc-kicker">비디오이미지프로세싱 · 논문 리뷰 · ICLR 2025</div>
       <h1 class="tc-title">Diffusion Models Are<br>Real-Time Game Engines</h1>
@@ -99,7 +99,7 @@
       <div class="dn-eq mono">x<sub>t</sub> = √ᾱ<sub>t</sub> · x<sub>0</sub> + √(1−ᾱ<sub>t</sub>) · ε, &nbsp; ε ~ 𝒩(0, I)</div>
     </div>
     <div class="dn-say" data-fout="2">
-      <div class="ds ds-a"><div class="ds-k">학습 <span class="mono">forward</span></div>깨끗한 이미지에 노이즈를 섞고<span class="sub">UNet은 섞은 노이즈를 맞히도록 학습</span></div>
+      <div class="ds ds-a"><div class="ds-k">학습 <span class="mono">forward</span></div>깨끗한 이미지에 노이즈를 섞고<span class="sub">UNet이 섞인 노이즈를 맞힘</span></div>
       <div class="ds ds-b"><div class="ds-k">생성 <span class="mono">reverse</span></div>순수 노이즈에서 시작해서<span class="sub">한 단계씩 노이즈를 걷어냄</span></div>
     </div>
     <div class="card dn-card c-latent" data-f="2">
@@ -108,7 +108,7 @@
         <figure><img src="assets/img/hero.jpg" alt=""><figcaption><span class="mono">320×256×3</span> 픽셀</figcaption></figure>
         <div class="lat-arrow">인코더<i></i></div>
         <figure class="lat-z"><div class="lat-stack"><canvas class="lat-canvas" width="40" height="32"></canvas><i></i><i></i><i></i></div><figcaption><span class="mono">40×32×4</span> latent</figcaption></figure>
-        <p class="card-p">수업 때 본 <b>오토인코더</b>의 인코더<br>픽셀 <b>8×8</b>을 latent 한 칸으로 압축<br>→ 작은 latent에서 디노이징하니 <b>훨씬 빠름</b></p>
+        <p class="card-p">수업 때 본 <b>오토인코더</b>로<br>픽셀 <b>8×8</b>을 latent 한 칸에 압축<br>→ 작은 latent에서 디노이징해 <b>훨씬 빠름</b></p>
       </div>
     </div>
     <div class="card dn-card c-cond" data-f="3">
@@ -241,7 +241,7 @@
         <div class="na-emb">구간마다 <span class="gen">임베딩</span>을 학습해서 모델에 같이 입력</div>
       </div>
       <div class="na-quote" data-f="1">
-        <blockquote>“앞서 만들어진 프레임의 정보를 <em>바로잡을 수 있게</em> 된다”</blockquote>
+        <blockquote>“앞서 만든 프레임의 정보를 <em>바로잡을 수 있게</em> 된다”</blockquote>
         <cite>Valevski et al., §3.2.1 &nbsp;<span class="serif">“allows the network to correct information sampled in previous frames”</span></cite>
       </div>
     </div>
@@ -272,7 +272,7 @@
   <!-- ============ 8 · REAL-TIME ============ -->
   <section class="slide s-rt" data-id="realtime" data-steps="1">
     <header class="head">
-      <h2 class="h2"><span class="gen">20 FPS</span>를 만든 두 가지</h2>
+      <h2 class="h2">선명한 화면과 <span class="gen">20 FPS</span></h2>
     </header>
     <div class="rt-l">
       <div class="rt-h"><span class="num">①</span> 디코더만 다시 학습</div>
@@ -283,7 +283,7 @@
         <span class="w-la">SD v1.4 디코더</span><span class="w-lb">다시 학습</span>
         <div class="w-hud"></div>
       </div>
-      <p class="rt-p">기본 디코더는 <b>탄약·체력 숫자</b> 같은 작은 글씨가 뭉개짐 · 논문 Fig. 12<br>→ 디코더만 <b>reconstruction loss</b>로 게임 화면에 맞게 다시 학습</p>
+      <p class="rt-p">기본 디코더는 <b>탄약·체력 숫자</b> 같은 작은 글씨가 뭉개짐 · 논문 Fig. 12<br>→ <b>reconstruction loss</b>로 게임 화면에 맞게 다시 학습함</p>
     </div>
     <div class="rt-r" data-f="1">
       <div class="rt-h"><span class="num">②</span> 디노이징은 <b class="gen">4</b>단계만</div>
@@ -343,13 +343,13 @@
     </header>
     <div class="screen-mem" data-f="1" data-fout="2">
       <div class="sm-frame"><img src="assets/img/hero.jpg" alt=""><i class="sm-hl h1"></i><i class="sm-hl h2"></i></div>
-      <div class="sm-t">대신 <b class="real">화면</b>이 기억해 준다<small>탄약·체력은 매 프레임 화면에 떠 있어서 계속 남음<br>발표 화면 아래 상태 표시줄처럼 ↓</small></div>
+      <div class="sm-t">대신 <b class="real">화면</b>이 기억해 줌<small>탄약·체력은 매 프레임 화면에 떠 있어 계속 남음<br>발표 화면 아래 상태 표시줄처럼 ↓</small></div>
     </div>
     <div class="lim-cards" data-f="2">
       <div class="lc"><span class="mono">01</span><h3>짧은 기억</h3><p>최근 약 3초만 봄<br>화면에 없는 정보는 잊음</p></div>
       <div class="lc"><span class="mono">02</span><h3>데이터 범위</h3><p>에이전트가 못 가 본 곳은<br>잘 못 만듦</p></div>
       <div class="lc"><span class="mono">03</span><h3>흉내만 가능</h3><p>있는 게임을 따라 할 뿐<br>새 게임은 못 만듦</p></div>
-      <div class="lc"><span class="mono">04</span><h3>직접 하면 티 남</h3><p>저자들도 몇 초 만에<br>알아챈 경우가 많음</p></div>
+      <div class="lc"><span class="mono">04</span><h3>직접 하면 티 남</h3><p>저자들은 몇 초 만에<br>알아챈 경우가 많음</p></div>
     </div>
   </section>
 
@@ -361,7 +361,7 @@
     <ol class="sum" data-fout="1">
       <li><span class="mono">01</span><div><b>게임 엔진</b> → 다음 프레임 예측</div></li>
       <li><span class="mono">02</span><div><b class="gen">키 입력</b> + <b class="real">과거 프레임</b>을 조건으로 받는<br>Stable Diffusion</div></li>
-      <li><span class="mono">03</span><div>Drift는 <b class="gen">과거에 노이즈 섞기</b>로 해결</div></li>
+      <li><span class="mono">03</span><div>Drift는 <b class="gen">노이즈 증강</b>으로 해결</div></li>
     </ol>
     <div class="wm" data-f="1" data-fout="3">
       <div class="wm-hd">
@@ -372,7 +372,7 @@
       <div class="genie" data-f="2">
         <div class="gn-h">최근 사례 <b>Genie 4</b><span>Google DeepMind · 2026년 10월 공개 · 연구 프리뷰</span></div>
         <div class="gn-grid">
-          <div class="gn-c"><small>GameNGen</small>있는 게임 <b>DOOM 하나</b>를 흉내</div>
+          <div class="gn-c"><small>GameNGen</small>기존 게임 <b>DOOM 하나</b>를 흉내</div>
           <div class="gn-c gen-c"><small>Genie 4</small>글로 설명한 <b>새 세계</b>를 실시간 생성<br>키보드로 이동 · 텍스트로 장면 변경</div>
         </div>
         <div class="gn-foot">남은 숙제는 같음 · 오래 돌리면 화면이 흐트러짐 <span class="real">(drift)</span></div>
@@ -399,8 +399,8 @@
       <button class="qa-c" data-q="6"><b class="mono">6</b>다른 게임에도 될까?</button>
       <button class="qa-c" data-q="7"><b class="mono">7</b>게임 엔진을 대신할 수 있을까?</button>
       <button class="qa-c" data-q="8"><b class="mono">8</b>RL 에이전트 보상은 어떻게?</button>
-      <button class="qa-c" data-q="9"><b class="mono">9</b>수업 때 본 식이랑 다른데?</button>
-      <button class="qa-c" data-q="0"><b class="mono">0</b>Sora 같은 영상 생성이랑 뭐가 달라?</button>
+      <button class="qa-c" data-q="9"><b class="mono">9</b>수업 때 본 식과 왜 다를까?</button>
+      <button class="qa-c" data-q="0"><b class="mono">0</b>Sora 같은 영상 생성과 다른 점은?</button>
     </div>
     <div class="qa-hint">숫자 키 <kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> 으로 답변 열기 · <kbd>Esc</kbd> 닫기</div>
     <div class="qa-detail">
@@ -437,7 +437,7 @@
     <div class="help-in">
       <h3>단축키</h3>
       <p><kbd>→</kbd> <kbd>Space</kbd> <kbd>PgDn</kbd> 다음 &nbsp; <kbd>←</kbd> <kbd>PgUp</kbd> 이전</p>
-      <p><kbd>P</kbd> 발표자 화면 &nbsp; <kbd>O</kbd> 전체 보기 &nbsp; <kbd>F</kbd> 전체화면 &nbsp; <kbd>B</kbd> 화면 끄기</p>
+      <p><kbd>P</kbd> 발표자 화면 &nbsp; <kbd>O</kbd> 전체 보기 &nbsp; <kbd>F</kbd> 전체화면 &nbsp; <kbd>B</kbd> 화면 끄기 &nbsp; <kbd>L</kbd> 레이저 포인터</p>
       <p><kbd>G</kbd> 논문 그림 &nbsp; <kbd>Q</kbd> Q&amp;A 부록 &nbsp; <kbd>M</kbd> 저사양 모드 (3D 끔) &nbsp; <kbd>R</kbd> 타이머 리셋</p>
       <p><kbd>3</kbd><kbd>Enter</kbd> 3번 슬라이드로 이동 &nbsp; <kbd>Home</kbd>/<kbd>End</kbd> 처음/끝</p>
       <p class="lite-state"></p>
@@ -450,6 +450,7 @@
 <script src="js/notes.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/deck.js"></script>
+<script src="js/laser.js"></script>
 <script src="js/slides/s-boot-hook.js"></script>
 <script src="js/slides/s-engine.js"></script>
 <script src="js/slides/s-diffusion.js"></script>

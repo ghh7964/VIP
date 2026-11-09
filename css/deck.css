@@ -126,6 +126,13 @@ b,strong{font-weight:700}
   background:repeating-linear-gradient(180deg,rgba(255,255,255,.018) 0 1px,transparent 1px 4px),
              radial-gradient(ellipse at center,transparent 58%,rgba(0,0,0,.45) 100%)}
 @keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-30px,20px)}40%{transform:translate(25px,-35px)}60%{transform:translate(-15px,40px)}80%{transform:translate(35px,10px)}}
+/* laser pointer (js/laser.js): lives outside the scaled stage, in screen pixels */
+html.laser-on,html.laser-on *{cursor:none !important}
+#laser{position:fixed;left:0;top:0;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;pointer-events:none;z-index:2147483646;opacity:0;transition:opacity .25s;will-change:transform;
+  background:radial-gradient(circle,#fff 0 16%,#ff5a48 34%,#ff2a1e 52%,rgba(255,42,30,0) 72%);
+  box-shadow:0 0 10px 3px rgba(255,42,30,.75),0 0 30px 10px rgba(255,42,30,.32)}
+#laser.on{opacity:1}
+#laser-trail{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483645}
 #blackout{position:absolute;inset:0;background:#000;z-index:200;opacity:0;pointer-events:none;transition:opacity .4s}
 #stage.black #blackout{opacity:1}
 body.lite #grain{animation:none}
